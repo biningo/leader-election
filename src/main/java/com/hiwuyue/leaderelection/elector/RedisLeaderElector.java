@@ -17,8 +17,8 @@ import redis.clients.jedis.JedisPool;
 
 public class RedisLeaderElector extends AbstractLeaderElector {
 
-    private static final String ELECTION_NODES_KEY = "election::nodes";
-    private static final String ELECTION_LEADER_KEY = "election::leader";
+    private String electionNodesKey = "election::nodes";
+    private String leaderKey = "election::leader";
 
     private static final String LEADER_ELECTION_LUA =
         "local leaderId = redis.call(get, KEYS[1]);" +
@@ -56,6 +56,12 @@ public class RedisLeaderElector extends AbstractLeaderElector {
         }
     }
 
+    public RedisLeaderElector(String leaderKey, String electionNodesKey, JedisPool clientPool) {
+        this(clientPool);
+        this.leaderKey = leaderKey;
+        this.electionNodesKey = electionNodesKey;
+    }
+
     @Override
     public void startWatchElection() {
         if (!running.compareAndSet(false, true)) {
@@ -66,7 +72,7 @@ public class RedisLeaderElector extends AbstractLeaderElector {
             try (Jedis client = clientPool.getResource();) {
                 while (running.get()) {
                     int status = (int) client.eval(LEADER_ELECTION_LUA_HASH,
-                        Collections.singletonList(ELECTION_LEADER_KEY),
+                        Collections.singletonList(leaderKey),
                         Arrays.asList(this.electorId, String.valueOf(LEADER_TIMEOUT_MS)));
 
                     boolean nowIsLeader = status == 1;
@@ -83,7 +89,7 @@ public class RedisLeaderElector extends AbstractLeaderElector {
         heartbeatThread.execute(() -> {
             try (Jedis client = clientPool.getResource();) {
                 while (running.get()) {
-                    client.zadd(ELECTION_NODES_KEY, System.currentTimeMillis(), this.electorId);
+                    client.zadd(electionNodesKey, System.currentTimeMillis(), this.electorId);
                     ThreadUtil.sleepIgnoreInterrupt(HEARTBEAT_TIME_MS, TimeUnit.SECONDS);
                 }
             }
@@ -104,7 +110,7 @@ public class RedisLeaderElector extends AbstractLeaderElector {
     @Override
     public List<String> getElectionPeers() {
         try (Jedis client = clientPool.getResource()) {
-            return client.zrange(ELECTION_NODES_KEY, 0, -1);
+            return client.zrange(electionNodesKey, 0, -1);
         }
     }
 }
