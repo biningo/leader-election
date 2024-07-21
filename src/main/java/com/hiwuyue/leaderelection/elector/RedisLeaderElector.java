@@ -10,6 +10,8 @@ import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 
@@ -29,6 +31,8 @@ public class RedisLeaderElector extends AbstractLeaderElector {
     private static final long LEADER_TIMEOUT_MS = 30 * 1000;
 
     private static final long HEARTBEAT_TIME_MS = LEADER_TIMEOUT_MS / 2;
+
+    private final Logger Log = LoggerFactory.getLogger(RedisLeaderElector.class);
 
     private final JedisPool clientPool;
 
@@ -67,6 +71,7 @@ public class RedisLeaderElector extends AbstractLeaderElector {
 
                     boolean nowIsLeader = status == 1;
                     if (this.isLeader() != nowIsLeader) {
+                        Log.info("RedisLeaderElector: transfer leader,nowIsLeader={},electorId=" + nowIsLeader, this.electorId);
                         this.notifyLeaderElect(nowIsLeader);
                     }
 
@@ -83,6 +88,8 @@ public class RedisLeaderElector extends AbstractLeaderElector {
                 }
             }
         });
+
+        Log.info("RedisLeaderElector: started");
     }
 
     @Override
