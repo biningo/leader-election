@@ -30,11 +30,6 @@
             <version>${zookeeper.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.etcd</groupId>
-            <artifactId>jetcd-core</artifactId>
-            <version>${jetcd.version}</version>
-        </dependency>
-        <dependency>
             <groupId>redis.clients</groupId>
             <artifactId>jedis</artifactId>
             <version>${jedis.version}</version>
