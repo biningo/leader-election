@@ -15,8 +15,8 @@ import org.slf4j.LoggerFactory;
 
 public class ZkLeaderElector extends AbstractLeaderElector {
 
-    private final String LEADER_PATH = "/leaderelection/leader";
-    private final String ELECTION_NODES_PATH = "/leaderelection/nodes";
+    private String leaderPath = "/leaderelection/leader";
+    private String electionNodesPath = "/leaderelection/nodes";
 
     private final Logger Log = LoggerFactory.getLogger(ZkLeaderElector.class);
 
@@ -26,12 +26,18 @@ public class ZkLeaderElector extends AbstractLeaderElector {
         this.zkClient = zkClient;
     }
 
+    public ZkLeaderElector(String leaderPath, String electionNodesPath, ZooKeeper zkClient) {
+        this.leaderPath = leaderPath;
+        this.electionNodesPath = electionNodesPath;
+        this.zkClient = zkClient;
+    }
+
     @Override
     public void startWatchElection() {
         registerElectionNode();
         notifyLeaderElect(elect());
         try {
-            zkClient.addWatch(LEADER_PATH, event -> {
+            zkClient.addWatch(leaderPath, event -> {
                 if (event.getType() == Watcher.Event.EventType.NodeDeleted) {
                     Log.info("ZkLeaderElector: leader node deleted");
                     notifyLeaderElect(elect());
@@ -46,7 +52,7 @@ public class ZkLeaderElector extends AbstractLeaderElector {
 
     private boolean elect() {
         try {
-            String leaderId = zkClient.create(LEADER_PATH, this.electorId.getBytes(StandardCharsets.UTF_8),
+            String leaderId = zkClient.create(leaderPath, this.electorId.getBytes(StandardCharsets.UTF_8),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
             boolean isLeader = leaderId.equals(this.electorId);
 
@@ -61,7 +67,7 @@ public class ZkLeaderElector extends AbstractLeaderElector {
 
     private void registerElectionNode() {
         try {
-            zkClient.create(ELECTION_NODES_PATH, this.electorId.getBytes(StandardCharsets.UTF_8),
+            zkClient.create(electionNodesPath, this.electorId.getBytes(StandardCharsets.UTF_8),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
         } catch (KeeperException | InterruptedException e) {
             Log.error("ZkLeaderElector: register election node failed! error:{}", e.getMessage());
@@ -79,7 +85,7 @@ public class ZkLeaderElector extends AbstractLeaderElector {
     @Override
     public List<String> getElectionPeers() {
         try {
-            return zkClient.getChildren(ELECTION_NODES_PATH, false);
+            return zkClient.getChildren(electionNodesPath, false);
         } catch (KeeperException | InterruptedException e) {
             Log.error("ZkLeaderElector: get election peers failed! error:{}", e.getMessage());
             return Collections.emptyList();
